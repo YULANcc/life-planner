@@ -128,11 +128,17 @@ function taskOnDay(t, wd) {
   return true;
 }
 
-function pickSlot(t, date) {
-  if (t.slotPref && t.slotPref !== 'any') return t.slotPref;
-  const load = { morning: 0, afternoon: 0, evening: 0 };
-  state.schedule.filter(s => s.date === date).forEach(s => { load[s.slot] += energyOf(s); });
-  return SLOTS.map(s => s.key).sort((a, b) => load[a] - load[b])[0];
+/* 选时段：先看偏好，再看剩余容量；都放不下就返回 null（填满就停） */
+function pickSlotByLoad(t, load, cap, energy) {
+  const keys = SLOTS.map(x => x.key);
+  const order = (t.slotPref && t.slotPref !== 'any')
+    ? [t.slotPref].concat(keys.filter(k => k !== t.slotPref))
+    : keys.slice().sort((a, b) => (load[a] || 0) - (load[b] || 0));
+  for (let i = 0; i < order.length; i++) {
+    const k = order[i];
+    if ((load[k] || 0) + energy <= (cap[k] || 0)) return k;
+  }
+  return null;
 }
 
 function generateWeek(weekStart, opts) {
@@ -141,20 +147,33 @@ function generateWeek(weekStart, opts) {
   // 清掉本周未打卡的安排，保留已打卡记录
   state.schedule = state.schedule.filter(s => s.date < start || s.date > end || s.result);
 
+  const cap = state.settings.budget;
+  let dropped = 0;
+
   for (let i = 0; i < 7; i++) {
     const d = addDays(weekStart, i);
     const date = ymd(d);
     const wd = i + 1;
     const used = {};
-    state.schedule.filter(s => s.date === date).forEach(s => { used[s.taskId] = true; });
+    const load = { morning: 0, afternoon: 0, evening: 0 };
 
+    state.schedule.filter(s => s.date === date).forEach(x => {
+      used[x.taskId] = true;
+      load[x.slot] = (load[x.slot] || 0) + energyOf(x);
+    });
+
+    // state.tasks 的顺序 = 用户在规划台拖出来的顺序
     state.tasks.forEach(t => {
       if (!taskOnDay(t, wd)) return;
       if (used[t.id]) return;
-      const slot = pickSlot(t, date);
+      const e = t.full.energy;
+      const slot = pickSlotByLoad(t, load, cap, e);
+      if (!slot) { if (!opts.randomResults) dropped++; return; }
+
       const item = { id: uid(), date: date, slot: slot, taskId: t.id, mode: 'full', result: null };
       state.schedule.push(item);
       used[t.id] = true;
+      load[slot] += e;
       if (opts.randomResults) {
         const r = Math.random();
         if (r < 0.72) { item.result = 'done'; if (Math.random() < 0.25) item.mode = 'mini'; }
@@ -164,6 +183,32 @@ function generateWeek(weekStart, opts) {
     });
   }
   save();
+  return { dropped: dropped };
+}
+
+/* 把界面上的顺序写回数据（拖动排序后调用） */
+function commitOrder() {
+  const gEls = $$('#goalList > .goal-group');
+  if (gEls.length) {
+    const ids = gEls.map(el => el.dataset.gid);
+    state.goals.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+  }
+  const ordered = [];
+  gEls.forEach(gEl => {
+    const box = gEl.querySelector('.tasks');
+    if (!box) return;
+    const gid = gEl.dataset.gid;
+    $$('.trow', box).forEach(tEl => {
+      const t = taskById(tEl.dataset.tid);
+      if (!t) return;
+      t.goalId = gid;          // 拖到别的目标下就等于改了归属
+      ordered.push(t);
+    });
+  });
+  if (ordered.length) {
+    state.tasks.forEach(t => { if (ordered.indexOf(t) < 0) ordered.push(t); });
+    state.tasks = ordered;
+  }
 }
 
 /* ========== 外壳 ========== */
@@ -204,7 +249,8 @@ function renderPlan() {
     const rows = tasks.map(t => {
       const rep = repeatLabel(t.repeat);
       const slot = t.slotPref === 'any' ? '不限时段' : SLOT_LABEL[t.slotPref] + '间';
-      return '<div class="trow">' +
+      return '<div class="trow" data-tid="' + t.id + '">' +
+        '<button class="handle" data-drag="task" aria-label="拖动排序">≡</button>' +
         '<span class="tname">' + esc(t.title) + '</span>' +
         '<span class="pills">' +
         '<span class="pill"><em>完整</em>' + t.full.minutes + ' 分<i>精力 ' + t.full.energy + '</i></span>' +
@@ -217,8 +263,9 @@ function renderPlan() {
         '<button class="xbtn" data-task-del="' + t.id + '">删除</button>' +
         '</div>';
     }).join('');
-    return '<div class="goal-group">' +
+    return '<div class="goal-group" data-gid="' + g.id + '">' +
       '<div class="goal-head">' +
+      '<button class="handle" data-drag="goal" aria-label="拖动排序">≡</button>' +
       '<span class="goal-dot" style="background:' + ty.color + '"></span>' +
       '<span class="goal-title">' + esc(g.title) + '</span>' +
       '<span class="goal-type">' + esc(ty.label) + '</span>' +
@@ -766,9 +813,14 @@ function bind() {
   document.addEventListener('click', e => {
     if (e.target.closest('#btnGenerate')) {
       if (!state.tasks.length) { alert('还没有任务。先去 Plan 建一个目标，再往下拆任务。'); return; }
-      generateWeek(ui.weekStart);
+      const res = generateWeek(ui.weekStart);
       render();
-      alert('已按任务的重复规则铺好这一周。已经打过卡的记录不会被覆盖。');
+      if (res.dropped) {
+        alert('已按你在 Plan 里排的顺序铺好这一周。有 ' + res.dropped +
+          ' 件因为超出精力预算装不下，没有排进去——可以减少几件，或者到设置里调大预算。');
+      } else {
+        alert('已按你在 Plan 里排的顺序铺好这一周，全部装得下。已经打过卡的记录不会被覆盖。');
+      }
       return;
     }
     if (e.target.closest('#btnTired')) {
@@ -786,6 +838,64 @@ function bind() {
       renderWeek();
     }
   });
+
+  // 拖动排序（鼠标和触摸都用 pointer 事件）
+  let drag = null;
+  document.addEventListener('pointerdown', e => {
+    const handle = e.target.closest('[data-drag]');
+    if (!handle) return;
+    const row = handle.dataset.drag === 'goal'
+      ? handle.closest('.goal-group')
+      : handle.closest('.trow');
+    if (!row) return;
+    drag = { el: row, kind: handle.dataset.drag };
+    row.classList.add('is-dragging');
+    try { handle.setPointerCapture(e.pointerId); } catch (err) { /* 忽略 */ }
+    e.preventDefault();
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const y = e.clientY;
+
+    if (drag.kind === 'goal') {
+      const list = $('#goalList');
+      const items = [].slice.call(list.querySelectorAll(':scope > .goal-group')).filter(x => x !== drag.el);
+      let target = null;
+      for (let i = 0; i < items.length; i++) {
+        const r = items[i].getBoundingClientRect();
+        if (y < r.top + r.height / 2) { target = items[i]; break; }
+      }
+      if (target) list.insertBefore(drag.el, target);
+      else list.appendChild(drag.el);
+      return;
+    }
+
+    // 任务行：指针停在哪一组，就挪进那一组（跨目标拖动 = 同时改归属和顺序）
+    const under = document.elementFromPoint(e.clientX, y);
+    const group = under && under.closest ? under.closest('.goal-group') : null;
+    const box = (group && group.querySelector('.tasks')) || drag.el.parentElement;
+    if (!box) return;
+    const items = [].slice.call(box.querySelectorAll(':scope > .trow')).filter(x => x !== drag.el);
+    let target = null;
+    for (let i = 0; i < items.length; i++) {
+      const r = items[i].getBoundingClientRect();
+      if (y < r.top + r.height / 2) { target = items[i]; break; }
+    }
+    if (target) box.insertBefore(drag.el, target);
+    else box.appendChild(drag.el);
+  });
+
+  const endDrag = () => {
+    if (!drag) return;
+    drag.el.classList.remove('is-dragging');
+    drag = null;
+    commitOrder();
+    save();
+    render();
+  };
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
 
   // 使用说明
   $('#btnHelp').addEventListener('click', openGuide);
