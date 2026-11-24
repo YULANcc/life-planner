@@ -112,6 +112,10 @@ const energyOf = s => {
 };
 const dayBudget = () => SLOTS.reduce((a, s) => a + (state.settings.budget[s.key] || 0), 0);
 const weekDates = ws => Array.from({ length: 7 }, (_, i) => ymd(addDays(ws, i)));
+const parseYmd = s => {
+  const p = String(s).split('-').map(Number);
+  return new Date(p[0], p[1] - 1, p[2]);
+};
 const weekRangeLabel = ws =>
   FMT_MD_LONG.format(ws) + ' – ' + FMT_MD_LONG.format(addDays(ws, 6));
 
@@ -333,6 +337,7 @@ function taskCardHTML(s) {
     '<button data-act="done" aria-label="标记完成">✓</button>' +
     '<button data-act="partial" aria-label="标记做了一半">½</button>' +
     '<button data-act="skip" aria-label="标记跳过">✕</button>' +
+    '<button data-act="move" title="挪到别的日子或时段" aria-label="挪到别的日子或时段">⇄</button>' +
     '</div>' +
     '</div>';
 }
@@ -614,6 +619,30 @@ function renderDays() {
   }).join('');
 }
 
+/* ========== 弹窗：移动安排 ========== */
+let movingId = null;
+let movingSlot = 'morning';
+
+function openMove(sid) {
+  const s = state.schedule.find(x => x.id === sid);
+  if (!s) return;
+  const t = taskById(s.taskId);
+  movingId = sid;
+  movingSlot = s.slot;
+  $('#moveTaskName').textContent = '把「' + (t ? t.title : '这件事') + '」挪到别的日子或时段';
+  $('#moveDate').value = s.date;
+  renderMoveSeg();
+  $('#dlgMove').showModal();
+}
+
+function renderMoveSeg() {
+  $$('#moveSlot button').forEach(b => {
+    const on = b.dataset.slot === movingSlot;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+
 /* ========== 弹窗：添加安排 ========== */
 let pickTarget = null;
 
@@ -726,6 +755,7 @@ function bind() {
     const btn = e.target.closest('button');
     if (!btn) return;
     const act = btn.dataset.act;
+    if (act === 'move') { openMove(s.id); return; }
     if (act === 'del') state.schedule = state.schedule.filter(x => x.id !== s.id);
     else if (act === 'ver') s.mode = s.mode === 'mini' ? 'full' : 'mini';
     else if (act) s.result = (s.result === act) ? null : act;
@@ -845,6 +875,29 @@ function bind() {
     if (editingTaskId) Object.assign(taskById(editingTaskId), payload);
     else state.tasks.push(Object.assign({ id: uid() }, payload));
     save(); render(); $('#dlgTask').close();
+  });
+
+  // 移动安排
+  $('#moveSlot').addEventListener('click', e => {
+    const b = e.target.closest('[data-slot]');
+    if (!b) return;
+    movingSlot = b.dataset.slot;
+    renderMoveSeg();
+  });
+  $('#moveSave').addEventListener('click', () => {
+    const s = state.schedule.find(x => x.id === movingId);
+    const date = $('#moveDate').value;
+    if (!s || !date) { alert('选一个日期。'); return; }
+    s.date = date;
+    s.slot = movingSlot;
+    const inWeek = weekDates(ui.weekStart).indexOf(date) >= 0;
+    save(); render();
+    $('#dlgMove').close();
+    if (!inWeek) {
+      ui.weekStart = mondayOf(parseYmd(date));
+      render();
+      alert('已挪到 ' + FMT_MD_LONG.format(parseYmd(date)) + '，顺便帮你切到那一周了。');
+    }
   });
 
   // 添加安排弹窗

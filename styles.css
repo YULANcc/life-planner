@@ -416,6 +416,18 @@ dialog .dlg-cn { font-size: 13.5px; color: var(--mute); margin-bottom: 22px; }
 }
 .days button:hover { background: #F7F9FB; }
 .days button.on { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 500; }
+.seg {
+  display: flex; border: 1px solid var(--line2); border-radius: var(--r-ctl); overflow: hidden;
+}
+.seg button {
+  flex: 1; background: #fff; border: 0; border-right: 1px solid var(--line2);
+  color: var(--ink2); padding: 10px 0; font-size: 14px; min-height: 42px;
+  transition: background .15s, color .15s;
+}
+.seg button:last-child { border-right: 0; }
+.seg button:hover { background: #F7F9FB; }
+.seg button.on { background: var(--ink); color: #fff; font-weight: 500; }
+
 .type-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
 .type-row { display: flex; align-items: center; gap: 11px; font-size: 15px; }
 .type-row em { width: 11px; height: 11px; border-radius: 2px; font-style: normal; }

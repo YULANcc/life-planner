@@ -211,6 +211,28 @@
   </div>
 </dialog>
 
+<!-- 移动任务 -->
+<dialog id="dlgMove" aria-labelledby="dlgMoveTitle">
+  <h2 id="dlgMoveTitle">Move</h2>
+  <div class="dlg-cn" id="moveTaskName">把这件事挪到别的日子或时段</div>
+  <div class="field">
+    <label for="moveDate">日期</label>
+    <input id="moveDate" name="moveDate" type="date">
+  </div>
+  <div class="field">
+    <span class="field-label">时段</span>
+    <div class="seg" id="moveSlot" role="group" aria-label="选择时段">
+      <button type="button" data-slot="morning">早</button>
+      <button type="button" data-slot="afternoon">午</button>
+      <button type="button" data-slot="evening">晚</button>
+    </div>
+  </div>
+  <div class="dlg-actions">
+    <button class="btn ghost" data-close>取消</button>
+    <button class="btn primary" id="moveSave">移动</button>
+  </div>
+</dialog>
+
 <!-- 设置 -->
 <dialog id="dlgSettings" aria-labelledby="dlgSettingsTitle">
   <h2 id="dlgSettingsTitle">Settings</h2>
