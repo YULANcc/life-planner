@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F4F6F8">
 <meta name="color-scheme" content="light">
-<meta name="description" content="给低精力人群的生活规划台：定目标、拆到每天、一巴掌打卡、一周出图。">
+<meta name="description" content="Life Planner — 给低精力人群的生活规划台：定目标、拆到每天、简单打卡、每周复盘。">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="规划台">
-<title>生活规划台</title>
+<meta name="apple-mobile-web-app-title" content="Life Planner">
+<title>Life Planner</title>
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon.svg">
 <link rel="manifest" href="manifest.webmanifest">
@@ -19,71 +19,117 @@
 
 <a class="skip" href="#main">跳到主要内容</a>
 
-<header class="topbar">
-  <h1 class="brand">生活规划台</h1>
-  <nav class="tabs" id="tabs" aria-label="主导航">
-    <button class="tab is-active" data-tab="plan">规划台</button>
-    <button class="tab" data-tab="week">本周</button>
-    <button class="tab" data-tab="review">复盘</button>
-  </nav>
-  <div class="tools">
-    <button class="btn ghost sm" id="btnSeed">载入示例</button>
-    <button class="btn ghost sm" id="btnSettings">设置</button>
-    <button class="btn ghost sm" id="btnExport">导出</button>
-    <button class="btn ghost sm" id="btnImport">导入</button>
-    <input type="file" id="fileImport" accept=".json,application/json" hidden aria-hidden="true" tabindex="-1">
+<header class="masthead">
+  <div class="masthead-top">
+    <h1 class="mast-name">Life Planner</h1>
+    <div class="mast-meta" id="mastMeta">Weekly Edition</div>
+    <div class="mast-tools">
+      <button class="btn circle" id="btnHelp" aria-label="使用说明">?</button>
+      <button class="btn ghost sm" id="btnSeed">载入示例</button>
+      <button class="btn ghost sm" id="btnSettings">设置</button>
+      <button class="btn ghost sm" id="btnExport">导出</button>
+      <button class="btn ghost sm" id="btnImport">导入</button>
+      <input type="file" id="fileImport" accept=".json,application/json" hidden aria-hidden="true" tabindex="-1">
+    </div>
   </div>
+  <nav class="mast-nav" id="tabs" aria-label="主导航">
+    <button class="tab is-active" data-tab="plan">Plan</button>
+    <button class="tab" data-tab="week">Week</button>
+    <button class="tab" data-tab="review">Review</button>
+  </nav>
 </header>
 
 <main id="main">
 
-  <!-- 规划台 -->
-  <section id="view-plan" class="view is-active" aria-label="规划台">
-    <div class="section-head">
-      <h2>目标<span class="sub">先定 3–5 个，再拆成每天能做的动作</span></h2>
-      <div class="spacer"></div>
-      <button class="btn primary" id="btnAddGoal">+ 新目标</button>
+  <!-- Plan -->
+  <section id="view-plan" class="view is-active" aria-label="目标与任务">
+    <div class="page-head">
+      <h2 class="page-title">Goals</h2>
+      <p class="page-sub">
+        先定 3–5 个目标，再往下拆成每天能做的动作。每个动作都配两套参数：状态好做「完整版」，没电就做「简版」——<strong>做完简版也算完成</strong>。
+      </p>
+      <div class="row">
+        <div class="spacer"></div>
+        <button class="btn primary" id="btnAddGoal">+ 新目标</button>
+      </div>
     </div>
     <div id="goalList"></div>
     <div id="planEmpty" class="empty">
-      还没有目标。点右上角「+ 新目标」，或者先点「载入示例」看看完整效果。
+      <b>还没有目标</b>
+      点上面的「+ 新目标」开始，或者先点「载入示例」看看完整效果。<br>
+      不清楚每个字段是什么意思？点右上角的 <strong>?</strong> 看使用说明。
     </div>
   </section>
 
-  <!-- 本周 -->
+  <!-- Week -->
   <section id="view-week" class="view" aria-label="本周排期">
-    <div class="week-bar">
-      <div class="week-nav">
-        <button class="btn ghost icon" data-weeknav="prev" aria-label="上一周">‹</button>
-        <span class="week-label" aria-live="polite"></span>
-        <button class="btn ghost icon" data-weeknav="next" aria-label="下一周">›</button>
-        <button class="btn ghost sm" data-weeknav="today">回到本周</button>
-      </div>
-      <div class="spacer"></div>
-      <button class="btn ghost" id="btnTired">今天没电</button>
-      <button class="btn primary" id="btnGenerate">生成本周排期</button>
-    </div>
+    <div class="page-head" id="weekPageHead"></div>
+    <div class="day-picker" id="dayPicker" role="group" aria-label="选择要看的日期"></div>
     <div id="weekGrid" class="week-grid" role="group" aria-label="这一周的排期表"></div>
   </section>
 
-  <!-- 复盘 -->
+  <!-- Review -->
   <section id="view-review" class="view" aria-label="周复盘">
-    <div class="week-bar">
-      <div class="week-nav">
-        <button class="btn ghost icon" data-weeknav="prev" aria-label="上一周">‹</button>
-        <span class="week-label" aria-live="polite"></span>
-        <button class="btn ghost icon" data-weeknav="next" aria-label="下一周">›</button>
-        <button class="btn ghost sm" data-weeknav="today">回到本周</button>
-      </div>
-    </div>
+    <div class="page-head" id="reviewPageHead"></div>
     <div id="reviewBody" aria-live="polite"></div>
   </section>
 
 </main>
 
+<!-- 新手指引 -->
+<dialog id="dlgGuide" aria-labelledby="guideTitle">
+  <h2 id="guideTitle">How it works</h2>
+  <div class="dlg-cn">看完这几段，后面照着做就行</div>
+
+  <div class="guide-step">
+    <div class="n">Step 01</div>
+    <h3>先定目标，再拆成任务</h3>
+    <p>目标是你想做成的事（学韩语、读完一本书）。任务是能从目标往下拆的、可以重复做的动作（每天背 20 个单词）。</p>
+    <p>排期不用你手动摆：给任务设好重复规则，回「本周」点一次「生成本周排期」，系统会按规则把这一周铺满。</p>
+  </div>
+
+  <div class="guide-step">
+    <div class="n">Step 02</div>
+    <h3>按精力算，不按时间算</h3>
+    <p>低电量的人缺的不是时间，是电。所以每件事除了时长，还要标「耗几点精力」；早/午/晚各有预算，默认是 3 / 3 / 2。</p>
+    <p>某天消耗超过预算，那一格会变红。这不是限制，是提醒你今天别再往里塞了。</p>
+  </div>
+
+  <div class="guide-step">
+    <div class="n">Step 03</div>
+    <h3>每件事都写两套：完整版和简版</h3>
+    <p>状态好做完整版，没电就切简版，做完简版同样算完成——不会因为做不到完整版就让一整天归零。</p>
+    <p>当天实在没电，点「今天没电」，剩下的一键全部换成简版。</p>
+  </div>
+
+  <div class="guide-step">
+    <div class="n">Step 04</div>
+    <h3>每周看一眼，不写感受</h3>
+    <p>打卡只有三个按钮：完成 / 一半 / 跳过。不写心情、不写日记。一周结束到 Review 看一眼完成率、类型配比和时间分布。</p>
+  </div>
+
+  <div class="guide-step">
+    <div class="n">复盘页的指标怎么读</div>
+    <h3>每个数字的含义</h3>
+    <p><strong>完成率</strong>：完成算 1 分，做了一半算 0.5 分，跳过和没动的算 0 分；加起来除以这周排的总件数。所以 76% 不等于「76% 的事做完了」，而是「加权进度」。</p>
+    <p><strong>完成件数</strong>：完成 + 一半 的件数，和总排期件数对照着看。</p>
+    <p><strong>精力消耗</strong>：这周实际花掉的精力点数，对比全部预算。利用率长期接近 100% 说明排得太满。</p>
+    <p><strong>简版救场</strong>：有多少件是靠简版完成的。这个数不为零是好事，说明降级机制在起作用。</p>
+    <p><strong>类型配比</strong>：这周实际做完的事里，学习型 / 探索型 / 体验型各占多少。某一类长期是 0，说明生活偏了。</p>
+    <p><strong>时段完成率</strong>：早 / 午 / 晚哪个时段你真的做得动。长期挂零的时段，说明那个时间不适合放任务。</p>
+    <p><strong>精力收支</strong>：每天实际消耗的点数，对比当天预算。柱子顶到顶就是排满了。</p>
+  </div>
+
+  <div class="dlg-actions">
+    <button class="btn ghost" data-close>知道了，我自己来</button>
+    <button class="btn primary" id="guideSeed">载入示例数据看看</button>
+  </div>
+</dialog>
+
 <!-- 目标 -->
 <dialog id="dlgGoal" aria-labelledby="dlgGoalTitle">
-  <h2 id="dlgGoalTitle">新目标</h2>
+  <h2 id="dlgGoalTitle">New Goal</h2>
+  <div class="dlg-cn">目标是你想做成的事，数量控制在 3–5 个最稳</div>
   <div class="field">
     <label for="goalTitle">目标名称</label>
     <input id="goalTitle" name="goalTitle" autocomplete="off" placeholder="例如：学韩语、读完一本书…">
@@ -104,7 +150,8 @@
 
 <!-- 任务 -->
 <dialog id="dlgTask" aria-labelledby="dlgTaskTitle">
-  <h2 id="dlgTaskTitle">新任务</h2>
+  <h2 id="dlgTaskTitle">New Task</h2>
+  <div class="dlg-cn" id="taskDlgCn">从目标往下拆一个能重复做的动作</div>
   <div class="field">
     <label for="taskTitle">任务名称</label>
     <input id="taskTitle" name="taskTitle" autocomplete="off" placeholder="例如：背 20 个单词…">
@@ -115,7 +162,7 @@
       <input id="taskFullMin" name="taskFullMin" type="number" inputmode="numeric" min="1" max="600" value="30">
     </div>
     <div class="field">
-      <label for="taskFullEnergy">完整版 · 精力（1–5）</label>
+      <label for="taskFullEnergy">完整版 · 耗几点精力（1–5）</label>
       <input id="taskFullEnergy" name="taskFullEnergy" type="number" inputmode="numeric" min="1" max="5" value="3">
     </div>
     <div class="field">
@@ -123,7 +170,7 @@
       <input id="taskMiniMin" name="taskMiniMin" type="number" inputmode="numeric" min="1" max="600" value="8">
     </div>
     <div class="field">
-      <label for="taskMiniEnergy">简版 · 精力（1–5）</label>
+      <label for="taskMiniEnergy">简版 · 耗几点精力（1–5）</label>
       <input id="taskMiniEnergy" name="taskMiniEnergy" type="number" inputmode="numeric" min="1" max="5" value="1">
     </div>
   </div>
@@ -156,7 +203,8 @@
 
 <!-- 添加到某个时段 -->
 <dialog id="dlgPick" aria-labelledby="dlgPickTitle">
-  <h2 id="dlgPickTitle">添加到这个时段</h2>
+  <h2 id="dlgPickTitle">Add Task</h2>
+  <div class="dlg-cn">选一个任务放进这个时段</div>
   <div id="pickList" class="pick-list"></div>
   <div class="dlg-actions">
     <button class="btn ghost" data-close>关闭</button>
@@ -165,7 +213,8 @@
 
 <!-- 设置 -->
 <dialog id="dlgSettings" aria-labelledby="dlgSettingsTitle">
-  <h2 id="dlgSettingsTitle">设置</h2>
+  <h2 id="dlgSettingsTitle">Settings</h2>
+  <div class="dlg-cn">精力和类型是这套系统唯一的两个旋钮</div>
   <div class="field">
     <span class="field-label" id="budgetLabel">每时段精力预算（低精力人群建议调小一点）</span>
     <div class="grid3" role="group" aria-labelledby="budgetLabel">

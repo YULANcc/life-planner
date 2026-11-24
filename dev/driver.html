@@ -20,6 +20,17 @@ var f = document.getElementById('f');
     var d = f.contentDocument, w = f.contentWindow;
     w.alert = function () {}; w.confirm = function () { return true; };
 
+    var guide = d.getElementById('dlgGuide');
+    if (guide && guide.open) {
+      guide.querySelector('[data-close]').click();
+      await sleep(50);
+      say('\u24d8 \u9996\u6b21\u8bbf\u95ee\u5f39\u51fa\u4f7f\u7528\u8bf4\u660e\uff0c\u5df2\u5173\u95ed');
+    }
+    if (d.querySelector('.mast-name')) {
+      say('\u24d9 \u520a\u5934 = ' + d.querySelector('.mast-name').textContent +
+          '\uff1b\u5bfc\u822a = ' + [].map.call(d.querySelectorAll('.tab'), function (t) { return t.textContent; }).join(' / '));
+    }
+
     say('① 清空数据后：目标卡 ' + d.querySelectorAll('.goal-group').length +
         ' 个；空状态提示可见 = ' + (!d.getElementById('planEmpty').hidden));
 
@@ -60,24 +71,27 @@ var f = document.getElementById('f');
     say('⑤ 保存任务后：任务行 ' + d.querySelectorAll('.trow').length + ' 条，内容是 ' +
         d.querySelector('.trow').innerText.replace(/\s*\n\s*/g, ' / '));
 
-    d.getElementById('btnGenerate').click();
-    await sleep(90);
     d.querySelector('.tab[data-tab="week"]').click();
-    await sleep(90);
+    await sleep(120);
+    say('\u24da \u5207\u5230 Week \u89c6\u56fe\uff1a\u9875\u5934\u6807\u9898\u300c' +
+        (d.querySelector('#weekPageHead .page-title') || {}).textContent + '\u300d\uff0c\u65e5\u671f\u6761\u6709 ' +
+        d.querySelectorAll('#dayPicker button').length + ' \u5929');
+    d.getElementById('btnGenerate').click();
+    await sleep(140);
 
     var cards = d.querySelectorAll('#weekGrid .task');
     var daysWith = [].filter.call(d.querySelectorAll('#weekGrid .wcol'), function (c) {
       return c.querySelectorAll('.task').length > 0;
     }).length;
-    say('⑥ 生成本周排期：本周排了 ' + cards.length + ' 张卡，分布在 ' + daysWith + ' 天');
+    say('⑦ 生成本周排期：本周排了 ' + cards.length + ' 张卡，分布在 ' + daysWith + ' 天');
 
     d.querySelector('#weekGrid .task .task-btns [data-act="done"]').click();
     await sleep(60);
-    say('⑦ 点第一张卡的「完成」：卡片类名变成 ' + d.querySelector('#weekGrid .task').className);
+    say('⑧ 点第一张卡的「完成」：卡片类名变成 ' + d.querySelector('#weekGrid .task').className);
 
     d.querySelector('.tab[data-tab="plan"]').click();
     await sleep(70);
-    say('⑧ 回到规划台：界面里只有我自建的内容，共 ' +
+    say('⑨ 回到规划台：界面里只有我自建的内容，共 ' +
         d.querySelectorAll('.goal-group').length + ' 个目标 / ' +
         d.querySelectorAll('.trow').length + ' 个任务');
   } catch (e) {

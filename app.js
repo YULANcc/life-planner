@@ -14,6 +14,8 @@ const SLOT_ORDER = { morning: 0, afternoon: 1, evening: 2 };
 const WD_CN = ['一', '二', '三', '四', '五', '六', '日'];
 const FMT_MD_LONG = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' });
 const FMT_MD_SHORT = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric' });
+const FMT_MONTH_YEAR = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' });
+const DOW_EN = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const DEFAULT_TYPES = [
   { key: 'learning', label: '学习型', color: '#4C6EF5' },
@@ -61,7 +63,8 @@ function defaultState() {
     schedule: [],
     settings: {
       types: DEFAULT_TYPES.map(t => ({ ...t })),
-      budget: { morning: 3, afternoon: 3, evening: 2 }
+      budget: { morning: 3, afternoon: 3, evening: 2 },
+      seenGuide: false
     }
   };
 }
@@ -81,7 +84,8 @@ function loadState() {
       schedule: s.schedule || [],
       settings: {
         types: types,
-        budget: Object.assign({}, d.settings.budget, (s.settings && s.settings.budget) || {})
+        budget: Object.assign({}, d.settings.budget, (s.settings && s.settings.budget) || {}),
+        seenGuide: !!(s.settings && s.settings.seenGuide)
       }
     };
   } catch (e) {
@@ -94,7 +98,7 @@ function save() {
 }
 
 let state = loadState();
-const ui = { tab: 'plan', weekStart: mondayOf(new Date()) };
+const ui = { tab: 'plan', weekStart: mondayOf(new Date()), mobileDay: null };
 
 /* ========== 查询助手 ========== */
 const goalById = id => state.goals.find(g => g.id === id);
@@ -170,10 +174,11 @@ function syncUrl() {
 }
 
 function render() {
-  if (ui.tab !== 'week' && ui.tab !== 'review') ui.tab = ui.tab || 'plan';
+  if (['plan', 'week', 'review'].indexOf(ui.tab) < 0) ui.tab = 'plan';
   $$('.tab').forEach(b => b.classList.toggle('is-active', b.dataset.tab === ui.tab));
   $$('.view').forEach(v => v.classList.toggle('is-active', v.id === 'view-' + ui.tab));
-  $$('.week-label').forEach(e => { e.textContent = weekRangeLabel(ui.weekStart); });
+  const meta = $('#mastMeta');
+  if (meta) meta.textContent = FMT_MONTH_YEAR.format(new Date()) + ' \u00b7 Weekly Edition';
   if (ui.tab === 'plan') renderPlan();
   if (ui.tab === 'week') renderWeek();
   if (ui.tab === 'review') renderReview();
@@ -233,12 +238,39 @@ function repeatLabel(r) {
 }
 
 /* ========== 渲染：本周 ========== */
+function weekNavHTML() {
+  return '<div class="week-nav">' +
+    '<button class="btn ghost icon" data-weeknav="prev" aria-label="上一周">\u2039</button>' +
+    '<button class="btn ghost icon" data-weeknav="next" aria-label="下一周">\u203a</button>' +
+    '<button class="btn ghost sm" data-weeknav="today">回到本周</button>' +
+    '</div>';
+}
+
 function renderWeek() {
   const ws = ui.weekStart;
   const today = ymd(new Date());
   const grid = $('#weekGrid');
   const dates = weekDates(ws);
-  const hasAny = state.schedule.some(s => dates.indexOf(s.date) >= 0);
+  const todayIdx = dates.indexOf(today);
+
+  if (ui.mobileDay == null || ui.mobileDay < 0 || ui.mobileDay > 6) {
+    ui.mobileDay = todayIdx >= 0 ? todayIdx : 0;
+  }
+
+  $('#weekPageHead').innerHTML =
+    '<h2 class="page-title">This Week</h2>' +
+    '<p class="page-sub">' + weekRangeLabel(ws) + '。打卡只有三个按钮：完成 / 一半 / 跳过，不写感受。</p>' +
+    '<div class="row">' + weekNavHTML() + '<div class="spacer"></div>' +
+    '<button class="btn ghost" id="btnTired">今天没电</button>' +
+    '<button class="btn primary" id="btnGenerate">生成本周排期</button>' +
+    '</div>';
+
+  $('#dayPicker').innerHTML = dates.map((date, i) => {
+    const d = addDays(ws, i);
+    const cls = [i === ui.mobileDay ? 'is-on' : '', date === today ? 'is-today' : ''].filter(Boolean).join(' ');
+    return '<button data-day="' + i + '" class="' + cls + '" aria-pressed="' + (i === ui.mobileDay) + '">' +
+      '<b>' + DOW_EN[i] + '</b>' + FMT_MD_SHORT.format(d) + '</button>';
+  }).join('');
 
   let html = '';
   for (let i = 0; i < 7; i++) {
@@ -247,11 +279,13 @@ function renderWeek() {
     const totalE = items.reduce((a, s) => a + energyOf(s), 0);
     const cap = dayBudget();
     const pct = cap ? Math.min(100, Math.round(totalE / cap * 100)) : 0;
-    html += '<div class="wcol' + (date === today ? ' is-today' : '') + '">' +
+
+    html += '<div class="wcol' + (date === today ? ' is-today' : '') +
+      (i === ui.mobileDay ? ' is-shown' : '') + '">' +
       '<div class="wcol-head">' +
-      '<div><span class="wd">周' + WD_CN[i] + '</span><span class="dt">' +
-      FMT_MD_SHORT.format(d) + '</span>' +
-      (date === today ? '<span class="dt today">今天</span>' : '') + '</div>' +
+      '<div class="dow">' + DOW_EN[i] +
+      (date === today ? '<span class="today-tag">Today</span>' : '') + '</div>' +
+      '<div class="dt">' + FMT_MD_SHORT.format(d) + '</div>' +
       '<div class="energy">' +
       '<span class="energy-track" aria-hidden="true"><i class="energy-fill' + (totalE > cap ? ' over' : '') +
       '" style="transform:scaleX(' + (pct / 100) + ')"></i></span>' +
@@ -263,7 +297,7 @@ function renderWeek() {
       const arr = items.filter(s => s.slot === sl.key);
       const used = arr.reduce((a, s) => a + energyOf(s), 0);
       const bud = state.settings.budget[sl.key] || 0;
-      html += '<div class="slot' + (sl.key === 'evening' ? ' evening' : '') + '">' +
+      html += '<div class="slot">' +
         '<div class="slot-head' + (used > bud ? ' over' : '') + '">' +
         '<span class="slot-name">' + sl.label + '</span>' +
         '<span class="cnt">' + used + '/' + bud +
@@ -276,9 +310,6 @@ function renderWeek() {
     html += '</div>';
   }
   grid.innerHTML = html;
-
-  const bar = $('#weekHint');
-  if (bar) bar.hidden = hasAny;
 }
 
 function taskCardHTML(s) {
@@ -328,8 +359,14 @@ function renderReview() {
   const cap = dayBudget() * 7;
   const body = $('#reviewBody');
 
+  $('#reviewPageHead').innerHTML =
+    '<h2 class="page-title">Weekly Review</h2>' +
+    '<p class="page-sub">' + weekRangeLabel(ws) + '。只看结果，不做感受记录。记不住指标含义就点右上角的 ?。</p>' +
+    '<div class="row">' + weekNavHTML() + '</div>';
+
   if (!st.items.length) {
-    body.innerHTML = '<div class="empty">这一周还没有排期，先去「规划台」建好目标，或到「本周」点「生成本周排期」。</div>';
+    body.innerHTML = '<div class="empty"><b>这一周还没有排期</b>' +
+      '先去 Plan 建好目标，或到 Week 点一次「生成本周排期」。</div>';
     return;
   }
 
@@ -388,27 +425,30 @@ function renderReview() {
 
   body.innerHTML =
     '<div class="review-top">' +
-    statCard('完成率', st.rate + '%', '完成 ' + st.done + '，一半 ' + st.part + '，跳过 ' + st.skip + '，未动 ' + st.pend) +
-    statCard('完成件数', String(st.finished), '共排 ' + st.items.length + ' 件') +
-    statCard('精力消耗', st.spent + '/' + cap, '预算利用率 ' + (cap ? Math.round(st.spent / cap * 100) : 0) + '%') +
-    statCard('简版救场', st.miniUsed + ' 次', '用简版完成的次数') +
+    statCard('Completion', '完成率', st.rate + '%',
+      '完成算 1 分，一半算 0.5 分。本周完成 ' + st.done + '，一半 ' + st.part + '，跳过 ' + st.skip + '，未动 ' + st.pend) +
+    statCard('Finished', '完成件数', String(st.finished), '共排 ' + st.items.length + ' 件') +
+    statCard('Energy Used', '精力消耗', st.spent + ' / ' + cap,
+      '占全部预算 ' + (cap ? Math.round(st.spent / cap * 100) : 0) + '%，越接近 100% 说明排得越满') +
+    statCard('Mini Saves', '简版救场', st.miniUsed + ' 次',
+      '靠简版完成的次数。这个数不为零是好事，说明降级机制在起作用') +
     '</div>' +
 
-    '<div class="insight"><div class="t">本周观察</div><ul>' +
+    '<div class="insight"><div class="k"><b>Notes</b><s>本周观察</s></div><ul>' +
     tips.map(t => '<li>' + t + '</li>').join('') + '</ul></div>' +
 
     '<div class="panels">' +
-    '<div class="panel"><h3>类型配比（本周实际完成）</h3>' +
+    '<div class="panel"><h3>By Type</h3><div class="cn">类型配比（本周实际完成的事）</div>' +
     typeStackHTML(typeDist, typeTotal) +
     '<div class="legend">' + typeDist.map(x =>
       '<span><em style="background:' + x.color + '"></em>' + esc(x.label) + ' ' + x.count + '</span>').join('') +
     '</div></div>' +
 
-    '<div class="panel"><h3>各目标推进</h3>' +
+    '<div class="panel"><h3>By Goal</h3><div class="cn">各目标推进</div>' +
     (byGoal.length ? byGoal.map(g => barRow(g.title, g.rate, g.color)).join('') : '<div class="muted-note">本周没有目标下的排期</div>') +
     '</div>' +
 
-    '<div class="panel"><h3>每日完成情况</h3>' +
+    '<div class="panel"><h3>Daily</h3><div class="cn">每日完成情况</div>' +
     '<div class="vgroups">' + perDay.map(d => {
       const dn = d.done / maxDay * 100, pt = d.part / maxDay * 100, sk = d.skip / maxDay * 100;
       return '<div class="vgroup">' +
@@ -422,12 +462,12 @@ function renderReview() {
     '<span><em style="background:' + CHART.halfBar + '"></em>一半</span><span><em style="background:' + CHART.skip + '"></em>跳过</span></div>' +
     '</div>' +
 
-    '<div class="panel"><h3>时段完成率</h3>' +
+    '<div class="panel"><h3>By Time of Day</h3><div class="cn">时段完成率</div>' +
     bySlot.map(s => barRow(s.label + '间', s.rate, CHART.vital)).join('') +
     '<div class="muted-note">哪个时段长期挂零，就说明那个时段不适合放任务。</div>' +
     '</div>' +
 
-    '<div class="panel full"><h3>精力收支（每天）</h3>' +
+    '<div class="panel full"><h3>Energy Balance</h3><div class="cn">精力收支（每天）</div>' +
     '<div class="vgroups">' + perDay.map(d => {
       const sp = Math.min(100, d.spent / Math.max(1, dayBudget()) * 100);
       return '<div class="vgroup">' +
@@ -443,8 +483,34 @@ function renderReview() {
     '</div>';
 }
 
-function statCard(k, v, s) {
-  return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v + '</div><div class="s">' + s + '</div></div>';
+function statCard(en, cn, v, s) {
+  return '<div class="stat">' +
+    '<div class="k"><b>' + en + '</b><s>' + cn + '</s></div>' +
+    '<div class="v">' + v + '</div>' +
+    '<div class="s">' + s + '</div>' +
+    '</div>';
+}
+
+/* 引导弹窗 */
+function openGuide() {
+  const d = $('#dlgGuide');
+  if (d && !d.open) d.showModal();
+}
+
+function maybeShowGuide() {
+  const q = new URLSearchParams(location.search);
+  if (state.settings.seenGuide) return;
+  if (state.goals.length) return;
+  if (q.get('seed') === '1' || q.get('selftest') === '1' || q.get('noguide') === '1') return;
+  openGuide();
+}
+
+function doSeed(ask) {
+  if (ask && state.goals.length && !confirm('载入示例会替换掉当前所有数据，继续？')) return false;
+  seedData();
+  state.settings.seenGuide = true;
+  save(); render();
+  return true;
 }
 
 function barRow(label, rate, color) {
@@ -666,29 +732,43 @@ function bind() {
     save(); render();
   });
 
-  // 生成本周排期
-  $('#btnGenerate').addEventListener('click', () => {
-    if (!state.tasks.length) { alert('还没有任务，先去规划台建目标和任务。'); return; }
-    generateWeek(ui.weekStart);
-    render();
-    alert('已按任务的重复规则生成这一周的安排。已打卡的记录不会被覆盖。');
+  // 页头 / 日期条里的按钮（每次重绘都会重建，所以走委托）
+  document.addEventListener('click', e => {
+    if (e.target.closest('#btnGenerate')) {
+      if (!state.tasks.length) { alert('还没有任务。先去 Plan 建一个目标，再往下拆任务。'); return; }
+      generateWeek(ui.weekStart);
+      render();
+      alert('已按任务的重复规则铺好这一周。已经打过卡的记录不会被覆盖。');
+      return;
+    }
+    if (e.target.closest('#btnTired')) {
+      const today = ymd(new Date());
+      const todays = state.schedule.filter(s => s.date === today && !s.result);
+      if (!todays.length) { alert('今天没有还没完成的安排。'); return; }
+      todays.forEach(x => { x.mode = 'mini'; });
+      save(); render();
+      alert('今天剩下的 ' + todays.length + ' 件已全部换成简版，做完就算完成。');
+      return;
+    }
+    const dayBtn = e.target.closest('#dayPicker [data-day]');
+    if (dayBtn) {
+      ui.mobileDay = Number(dayBtn.dataset.day);
+      renderWeek();
+    }
   });
 
-  // 今天没电
-  $('#btnTired').addEventListener('click', () => {
-    const today = ymd(new Date());
-    const todays = state.schedule.filter(s => s.date === today && !s.result);
-    if (!todays.length) { alert('今天没有未完成的安排。'); return; }
-    todays.forEach(s => { s.mode = 'mini'; });
-    save(); render();
-    alert('今天剩下的 ' + todays.length + ' 件已全部换成简版，做完就算完成。');
+  // 使用说明
+  $('#btnHelp').addEventListener('click', openGuide);
+  $('#guideSeed').addEventListener('click', () => {
+    doSeed(false);
+    const d = $('#dlgGuide');
+    if (d) d.close();
   });
 
   // 顶栏工具
   $('#btnSeed').addEventListener('click', () => {
-    if (state.goals.length && !confirm('载入示例会替换掉当前所有数据，继续？')) return;
-    seedData(); save(); render();
-    alert('已载入示例：4 个目标 + 5 个任务，并生成了上周（含模拟打卡）和本周的排期。去「复盘」看看效果。');
+    if (!doSeed(true)) return;
+    alert('已载入示例：4 个目标 + 5 个任务，并生成了上周（含模拟打卡）和本周的排期。到 Review 看看效果。');
   });
   $('#btnExport').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
@@ -812,7 +892,12 @@ function bind() {
     const c = e.target.closest('[data-close]');
     if (!c) return;
     const d = c.closest('dialog');
-    if (d) d.close();
+    if (!d) return;
+    if (d.id === 'dlgGuide' && !state.settings.seenGuide) {
+      state.settings.seenGuide = true;
+      save();
+    }
+    d.close();
   });
 }
 
@@ -894,4 +979,5 @@ function runSelfTest() {
 bind();
 applyUrlParams();
 render();
+maybeShowGuide();
 if (new URLSearchParams(location.search).get('selftest') === '1') runSelfTest();
