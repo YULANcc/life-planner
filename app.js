@@ -311,6 +311,11 @@ function renderWeek() {
   $('#weekPageHead').innerHTML =
     '<h2 class="page-title">This Week</h2>' +
     '<p class="page-sub">' + weekRangeLabel(ws) + '。打卡只有三个按钮：完成 / 一半 / 跳过，不写感受。</p>' +
+    '<div class="week-legend">' +
+    '<span class="cap">卡片左侧色条 = 任务类型</span>' +
+    state.settings.types.map(ty =>
+      '<span><em style="background:' + ty.color + '"></em>' + esc(ty.label) + '</span>').join('') +
+    '</div>' +
     '<div class="row">' + weekNavHTML() + '<div class="spacer"></div>' +
     '<button class="btn ghost" id="btnTired">今天没电</button>' +
     '<button class="btn primary" id="btnGenerate">生成本周排期</button>' +
@@ -372,6 +377,7 @@ function taskCardHTML(s) {
   const cls = s.result ? ' is-' + s.result : '';
   return '<div class="task' + cls + '" style="--tc:' + ty.color + '" data-sid="' + s.id + '">' +
     '<button class="task-del" data-act="del" aria-label="把「' + esc(t.title) + '」从这天移除">×</button>' +
+    '<div class="task-goal">' + esc(g ? g.title : '未归属') + '</div>' +
     '<div class="task-title">' + esc(t.title) + '</div>' +
     '<div class="task-meta">' +
     '<span class="tm-time">' + use.minutes + ' 分</span>' +

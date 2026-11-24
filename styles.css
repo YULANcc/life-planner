@@ -198,6 +198,14 @@ h1, h2, h3 { text-wrap: balance; }
   color: var(--vital); margin-left: 7px;
 }
 
+.week-legend {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  font-size: 13px; color: var(--ink2); margin-top: 14px;
+}
+.week-legend span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+.week-legend em { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.week-legend .cap { color: var(--mute); }
+
 .energy { display: flex; align-items: center; gap: 9px; margin-top: 11px; }
 .energy-track { flex: 1; height: 5px; background: var(--track); border-radius: 3px; overflow: hidden; }
 .energy-fill {
@@ -234,6 +242,10 @@ h1, h2, h3 { text-wrap: balance; }
   width: 3px; background: var(--tc, #9AA7B5);
 }
 .task:hover { background: #E9EEF5; }
+.task-goal {
+  font-size: 11.5px; color: var(--mute); margin-bottom: 3px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .task-title {
   font-size: 15px; font-weight: 500; line-height: 1.45;
   padding-right: 18px; overflow-wrap: anywhere;
@@ -485,6 +497,7 @@ dialog .dlg-cn { font-size: 13.5px; color: var(--mute); margin-bottom: 22px; }
   }
   .page-head { padding: 24px 0 18px; }
   .day-picker { display: flex; }
+  .week-legend { gap: 14px; margin-top: 12px; font-size: 12.5px; }
 
   /* 窄屏只显示选中的那一天 */
   .week-grid { grid-template-columns: 1fr; }
