@@ -1,0 +1,15 @@
+{
+  "name": "生活规划台",
+  "short_name": "规划台",
+  "description": "给低精力人群的生活规划台：定目标、拆到每天、一巴掌打卡、一周出图。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1116",
+  "theme_color": "#0f1116",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}
